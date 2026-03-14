@@ -9,3 +9,6 @@ node_modules/
 Thumbs.db
 backend/output/*.obj
 frontend/public/*.obj
+3DDFA_V2/
+sample_face.jpg
+backend/input/*.jpg

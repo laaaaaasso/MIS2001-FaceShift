@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -55,23 +56,48 @@ def run_cmd(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
-def build_demo_command(help_text: str, image_path: Path) -> list[str]:
+def resolve_demo_script(repo_hint: Path) -> tuple[Path | None, Path | None]:
+    if repo_hint.is_file() and repo_hint.name == "demo.py":
+        return repo_hint.parent, repo_hint
+
+    if not repo_hint.exists():
+        return None, None
+
+    direct_demo = repo_hint / "demo.py"
+    if direct_demo.exists():
+        return repo_hint, direct_demo
+
+    demos = sorted(
+        [p for p in repo_hint.rglob("demo.py") if "3ddfa" in str(p).lower()],
+        key=lambda p: len(str(p)),
+    )
+    if demos:
+        return demos[0].parent, demos[0]
+    return None, None
+
+
+def build_demo_command(help_text: str, image_arg: str) -> list[str]:
     cmd = ["demo.py"]
     lower_help = help_text.lower()
 
     if "--img_fp" in help_text:
-        cmd += ["--img_fp", str(image_path)]
+        cmd += ["--img_fp", image_arg]
     elif "-f" in help_text and "img" in lower_help:
-        cmd += ["-f", str(image_path)]
+        cmd += ["-f", image_arg]
     elif "--image" in help_text:
-        cmd += ["--image", str(image_path)]
+        cmd += ["--image", image_arg]
     else:
-        cmd += [str(image_path)]
+        cmd += [image_arg]
 
     for flag in ("--save_obj", "--dump_obj", "--to_obj", "--write_obj"):
         if flag in help_text:
             cmd.append(flag)
             break
+
+    if "--opt" in help_text:
+        cmd += ["--opt", "obj"]
+    elif "-o" in help_text and "2d_sparse" in lower_help:
+        cmd += ["-o", "obj"]
 
     for obj_arg in ("--obj_fp", "--obj_path", "--output_obj"):
         if obj_arg in help_text:
@@ -83,6 +109,8 @@ def build_demo_command(help_text: str, image_path: Path) -> list[str]:
             cmd += [out_arg, "output"]
             break
 
+    if "--show_flag" in help_text:
+        cmd += ["--show_flag", "false"]
     return cmd
 
 
@@ -96,29 +124,56 @@ def main() -> int:
 
     print(f"[info] Input image: {image_path}")
     print(f"[info] Output obj : {output_path}")
-    print(f"[info] 3DDFA_V2   : {repo_dir}")
+    print(f"[info] 3DDFA_V2   : {repo_dir} (hint)")
 
     if not image_path.exists():
         print(f"[error] Image not found: {image_path}")
         return 1
 
-    demo_file = repo_dir / "demo.py"
-    if not demo_file.exists():
+    resolved_repo, demo_file = resolve_demo_script(repo_dir)
+    if resolved_repo is None or demo_file is None:
         print(
-            "[error] demo.py not found in 3DDFA_V2 path. "
-            "Set --repo or THREEDDFA_V2_DIR correctly."
+            "[error] demo.py not found. "
+            "Please install 3DDFA_V2 and set --repo (or THREEDDFA_V2_DIR) to its folder."
+        )
+        print(
+            "[hint] Example: python backend/export_face_obj.py --repo C:\\path\\to\\3DDFA_V2"
         )
         return 1
+    repo_dir = resolved_repo
+    print(f"[info] demo.py    : {demo_file}")
 
-    help_proc = run_cmd([args.python_bin, "demo.py", "-h"], cwd=repo_dir)
-    if help_proc.returncode != 0:
-        print("[error] Cannot read demo.py help output.")
-        if help_proc.stderr.strip():
-            print(help_proc.stderr.strip())
-        return 1
+    demo_image_path = image_path
+    demo_image_arg = str(image_path)
+    if any(ord(ch) > 127 for ch in str(image_path)):
+        ascii_input = repo_dir / "faceshift_input.jpg"
+        copy_file(image_path, ascii_input)
+        demo_image_path = ascii_input
+        demo_image_arg = "faceshift_input.jpg"
+        print(
+            "[info] Non-ASCII path detected. "
+            f"Using repo-local ASCII image for OpenCV compatibility: {demo_image_path}"
+        )
 
     started = time.time()
-    demo_cmd = [args.python_bin] + build_demo_command(help_proc.stdout, image_path)
+    help_proc = run_cmd([args.python_bin, "demo.py", "-h"], cwd=repo_dir)
+    if help_proc.returncode == 0:
+        demo_args = build_demo_command(help_proc.stdout, demo_image_arg)
+    else:
+        err_text = (help_proc.stderr or help_proc.stdout).strip()
+        print("[warn] Cannot read demo.py help output, fallback to official 3DDFA_V2 args.")
+        if err_text:
+            print(err_text)
+        demo_args = [
+            "demo.py",
+            "-f",
+            demo_image_arg,
+            "-o",
+            "obj",
+            "--show_flag",
+            "false",
+        ]
+    demo_cmd = [args.python_bin] + demo_args
     result = run_cmd(demo_cmd, cwd=repo_dir)
 
     if result.returncode != 0:
@@ -128,6 +183,25 @@ def main() -> int:
             print(err)
         if "no face" in err.lower():
             print("[hint] No face detected. Try a clearer frontal face photo.")
+        match = re.search(r"No module named '([^']+)'", err)
+        if match:
+            missing_mod = match.group(1)
+            print(f"[hint] Missing Python package/module: {missing_mod}")
+            print(
+                f"[hint] Install deps in your current env: "
+                f"pip install -r {repo_dir / 'requirements.txt'}"
+            )
+            if missing_mod in {"torch", "torchvision"}:
+                print(
+                    "[hint] If pip default fails on Windows CPU, try:\n"
+                    "      pip install torch torchvision --index-url "
+                    "https://download.pytorch.org/whl/cpu"
+                )
+            if missing_mod == "Sim3DR_Cython":
+                print(
+                    "[hint] Sim3DR_Cython is an optional compiled extension for rendering.\n"
+                    "      OBJ export should work after the lazy-import patch in 3DDFA_V2/demo.py."
+                )
         return 1
 
     repo_output_obj = repo_dir / "output" / "face.obj"

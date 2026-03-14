@@ -1,6 +1,6 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js";
-import { OBJLoader } from "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/OBJLoader.js";
+import * as THREE from "./vendor/three.module.js";
+import { OrbitControls } from "./vendor/OrbitControls.js";
+import { OBJLoader } from "./vendor/OBJLoader.js";
 
 const canvas = document.getElementById("scene");
 const status = document.getElementById("status");
@@ -34,8 +34,6 @@ function setDefaultMaterial(root) {
         metalness: 0.05,
       });
     }
-    child.castShadow = false;
-    child.receiveShadow = false;
   });
 }
 
@@ -60,13 +58,11 @@ function fitCameraToObject(object3d) {
 }
 
 const loader = new OBJLoader();
+status.textContent = "Loading ./public/face.obj ...";
 loader.load(
   "./public/face.obj",
   (obj) => {
     setDefaultMaterial(obj);
-
-    // Rotate if the exported mesh is Y-up/Z-forward mismatch.
-    obj.rotation.x = Math.PI;
     scene.add(obj);
     fitCameraToObject(obj);
     status.textContent = "Loaded: face.obj (drag to rotate, wheel to zoom, right-drag to pan)";
@@ -91,4 +87,3 @@ function animate() {
 }
 
 animate();
-

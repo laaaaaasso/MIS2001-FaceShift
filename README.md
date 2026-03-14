@@ -56,6 +56,18 @@ If your 3DDFA_V2 folder is elsewhere, pass `--repo` or set env var:
 set THREEDDFA_V2_DIR=C:\path\to\3DDFA_V2
 ```
 
+Install 3DDFA_V2 dependencies inside your active env:
+
+```bash
+pip install -r 3DDFA_V2/requirements.txt
+```
+
+If `torch` install fails with default source on Windows CPU-only env, use:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
 Download required 3DDFA_V2 model/checkpoint files according to its official README.  
 Keep the same relative locations expected by that repo (usually under `weights/` or similar paths).
 
@@ -127,4 +139,3 @@ If your version still fails, check:
 - `python demo.py -h` output
 - whether your demo script supports OBJ export directly
 - whether additional dependencies or checkpoints are missing
-
