@@ -129,27 +129,6 @@ UI flow:
 3. Edit page (real 3D viewer + local deformation sliders)
 4. Export page (presentation-ready options UI)
 
-## Deploy on Render (Static Site)
-
-This repo includes a Render Blueprint file: `render.yaml`.
-
-### Steps
-
-1. Push this project to GitHub.
-2. In Render Dashboard: `New` -> `Blueprint`.
-3. Connect your GitHub repo and select this repository.
-4. Render will detect `render.yaml` and create one static site service:
-   - service name: `faceshift-ui`
-   - root directory: `frontend`
-   - publish path: `.`
-5. Click `Apply`, wait for deploy, then open the generated `onrender.com` URL.
-
-### Notes
-
-- This deployment is frontend-only (static UI and local Three.js viewer).
-- Backend reconstruction script (`backend/export_face_obj.py`) still runs locally.
-- Ensure `frontend/public/face.obj` exists in repo before deploy.
-
 ## Real vs Placeholder
 
 ### Real (implemented)
