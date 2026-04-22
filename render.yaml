@@ -1,0 +1,13 @@
+services:
+  - type: static_site
+    name: faceshift-ui
+    env: static
+    rootDir: frontend
+    staticPublishPath: .
+    buildCommand: ""
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+
