@@ -1,10 +1,10 @@
-# FaceShift Phase 1 MVP
+# FaceShift Phase 1 + Phase 2 + UI Flow MVP
 
-Phase 1 proves one end-to-end pipeline:
+This project currently includes three deliverable layers:
 
-1. Single face image -> 3DDFA_V2 inference  
-2. Export reconstructed mesh to `.obj`  
-3. View mesh in a minimal Three.js page
+1. Phase 1: Single face image -> 3DDFA_V2 inference -> export `.obj` -> browser viewer.
+2. Phase 2: Local semantic facial editing in browser with real-time mesh deformation.
+3. UI Flow Phase: Product-style 4-step web prototype (Capture -> 3D Model -> Edit -> Export).
 
 ## Project Structure
 
@@ -22,6 +22,24 @@ frontend/
   index.html
   main.js
   style.css
+  src/
+    app.js
+    constants.js
+    components/
+      TopBar.js
+      StepIndicator.js
+    pages/
+      CapturePage.js
+      ProcessingPage.js
+      EditPage.js
+      ExportPage.js
+    viewer.js
+    masks.js
+    deform.js
+  vendor/
+    three.module.js
+    OrbitControls.js
+    OBJLoader.js
   public/
     face.obj
 ```
@@ -104,20 +122,77 @@ Open:
 http://localhost:5173/frontend/
 ```
 
-Controls:
+UI flow:
 
-- Left drag: orbit
-- Mouse wheel: zoom
-- Right drag: pan
+1. Capture page (camera/upload actions as UI-ready flow entry)
+2. Processing page (mock progress + checklist states)
+3. Edit page (real 3D viewer + local deformation sliders)
+4. Export page (presentation-ready options UI)
+
+## Real vs Placeholder
+
+### Real (implemented)
+
+- 3D face OBJ loading and viewer rendering
+- Orbit/zoom/pan interaction
+- Local deformation masks + mesh update
+- Live sliders:
+  - `nose_bridge_height`
+  - `chin_projection`
+  - `jaw_width`
+  - `cheek_fullness`
+- Reset to original mesh
+- Angle preset buttons and lighting mode UI with practical camera/light behavior
+
+### Placeholder / mock (UI complete, backend not fully bound yet)
+
+- Capture camera workflow
+- Multi-photo upload processing semantics
+- Processing progress linked to real backend stages
+- Export action output files
+- Some sliders in Edit panel marked `UI Ready` for future binding
+
+## Phase 2 Editing Controls
+
+After loading the face, use the control panel (top-right):
+
+- `nose_bridge_height`: raises/lowers bridge area with local falloff.
+- `chin_projection`: pushes/pulls chin region forward/backward.
+- `jaw_width`: widens/narrows jaw laterally, symmetric left-right.
+- `cheek_fullness` (optional): slight outward/inward cheek change.
+- `Reset`: restores original mesh exactly (from preserved base vertices).
+
+## Phase 2 Implementation Notes
+
+### Region masks
+
+`frontend/src/masks.js` builds heuristic vertex masks from normalized mesh coordinates:
+
+- `nose`: central upper-mid face, narrow around x-axis center.
+- `chin`: lower central face.
+- `jaw`: lower side bands (left/right).
+- `cheek`: middle side area with forward-depth preference.
+
+Each mask uses smooth thresholds + Gaussian falloff for continuity.
+
+### Deformation logic
+
+`frontend/src/deform.js` applies bounded displacements to a derived vertex buffer:
+
+- Keep `basePositions` unchanged.
+- Compute `workingPositions` from base on every slider change.
+- Apply local offsets weighted by region masks.
+- Recompute mesh normals for stable shading.
 
 ## Known Limitations
 
-- Single image only
-- No texture mapping
-- No facial editing controls
-- No mobile capture
-- No backend upload API
-- Reconstruction quality depends heavily on image quality and face visibility
+- Not medically accurate or anatomically validated.
+- Region masks are heuristic approximations from geometry only.
+- Editing quality depends on base reconstruction quality.
+- Capture/processing/export stages are UI-first in this phase (partly mocked).
+- No texture editing in this phase.
+- No mobile capture / live video / backend API in this phase.
+- Deformation is intended for interactive visualization MVP only.
 
 ## Assumptions
 
